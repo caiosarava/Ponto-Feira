@@ -1,15 +1,15 @@
 import { z } from "zod";
-import { createRouter, authedQuery, adminQuery, publicQuery } from "./middleware";
+import { createRouter, authedQuery, adminQuery, publicQuery } from "./middleware.js";
 import {
   findAttendanceRecordsByUser,
   findAllAttendanceRecords,
   createAttendanceRecord,
   findUnsyncedAttendanceRecords,
   markAttendanceRecordsAsSynced,
-} from "./queries/attendance";
-import { findWorkLocationById } from "./queries/attendance";
-import { appendAttendanceRecords } from "./services/googleSheets";
-import { env } from "./lib/env";
+} from "./queries/attendance.js";
+import { findWorkLocationById } from "./queries/attendance.js";
+import { appendAttendanceRecords } from "./services/googleSheets.js";
+import { env } from "./lib/env.js";
 import { TRPCError } from "@trpc/server";
 
 function haversineDistance(

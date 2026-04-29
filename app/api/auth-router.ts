@@ -3,17 +3,17 @@ import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:cry
 import { promisify } from "node:util";
 import { serialize } from "cookie";
 import { z } from "zod";
-import { Session } from "@contracts/constants";
-import { db } from "../db/connection";
-import { users } from "../db/schema";
+import { Session } from "../contracts/constants.js";
+import { db } from "../db/connection.js";
+import { users } from "../db/schema.js";
 import { eq } from "drizzle-orm";
-import { getSessionCookieOptions } from "./lib/cookies";
-import { createRouter, publicQuery } from "./middleware";
-import { signSessionToken } from "./kimi/session";
+import { getSessionCookieOptions } from "./lib/cookies.js";
+import { createRouter, publicQuery } from "./middleware.js";
+import { signSessionToken } from "./auth/session.js";
 import {
   appendUserCredentials,
   getUserCredentialsByEmail,
-} from "./services/googleSheets";
+} from "./services/googleSheets.js";
 
 const scrypt = promisify(scryptCallback);
 
@@ -121,7 +121,7 @@ const authRouter = createRouter({
 
       const token = await signSessionToken({
         unionId: input.email,
-        clientId: process.env.APP_ID || "local-app",
+        clientId: "password-auth",
       });
 
       setSessionCookie(
@@ -164,7 +164,7 @@ const authRouter = createRouter({
 
       const token = await signSessionToken({
         unionId: userRecord.email,
-        clientId: process.env.APP_ID || "local-app",
+        clientId: "password-auth",
       });
 
       setSessionCookie(

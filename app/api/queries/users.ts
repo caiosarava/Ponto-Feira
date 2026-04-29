@@ -1,8 +1,7 @@
 import { eq } from "drizzle-orm";
-import * as schema from "@db/schema";
-import type { InsertUser } from "@db/schema";
-import { getDb } from "./connection";
-import { env } from "../lib/env";
+import * as schema from "../../db/schema.js";
+import type { InsertUser } from "../../db/schema.js";
+import { getDb } from "./connection.js";
 
 export async function findUserByUnionId(unionId: string) {
   const rows = await getDb()
@@ -19,15 +18,6 @@ export async function upsertUser(data: InsertUser) {
     lastSignInAt: new Date(),
     ...data,
   };
-
-  if (
-    values.role === undefined &&
-    values.unionId &&
-    values.unionId === env.ownerUnionId
-  ) {
-    values.role = "admin";
-    updateSet.role = "admin";
-  }
 
   await getDb()
     .insert(schema.users)

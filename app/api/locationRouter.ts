@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { createRouter, publicQuery, authedQuery, adminQuery } from "./middleware";
+import { createRouter, publicQuery, authedQuery, adminQuery } from "./middleware.js";
 import {
   findAllWorkLocations,
   findWorkLocationById,
   createWorkLocation,
   updateWorkLocation,
   deleteWorkLocation,
-} from "./queries/attendance";
+} from "./queries/attendance.js";
 
 export const locationRouter = createRouter({
   list: publicQuery.query(() => findAllWorkLocations()),

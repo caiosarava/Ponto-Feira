@@ -1,5 +1,5 @@
-import { getDb } from "./connection";
-import { workLocations, attendanceRecords, users } from "@db/schema";
+import { getDb } from "./connection.js";
+import { workLocations, attendanceRecords, users } from "../../db/schema.js";
 import { eq, desc, and } from "drizzle-orm";
 
 export async function findAllWorkLocations() {

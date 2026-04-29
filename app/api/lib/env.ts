@@ -13,13 +13,9 @@ function optional(name: string): string {
 }
 
 export const env = {
-  appId: optional("APP_ID"),
   appSecret: required("APP_SECRET"),
   isProduction: process.env.NODE_ENV === "production",
   databaseUrl: required("DATABASE_URL"),
-  kimiAuthUrl: optional("KIMI_AUTH_URL"),
-  kimiOpenUrl: optional("KIMI_OPEN_URL"),
-  ownerUnionId: optional("OWNER_UNION_ID"),
   googleCredentialsBase64: optional("GOOGLE_CREDENTIALS_BASE64"),
   googleSheetsSpreadsheetId:
     process.env.GOOGLE_SHEETS_SPREADSHEET_ID ?? process.env.GOOGLE_SHEET_ID ?? "",

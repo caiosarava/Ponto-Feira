@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import type { AttendanceRecord } from "@db/schema";
+import type { AttendanceRecord } from "../../db/schema.js";
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 
