@@ -36,6 +36,85 @@ function formatTimeOnly(date: Date) {
   }).format(date);
 }
 
+export async function appendUserCredentials(
+  spreadsheetId: string,
+  email: string,
+  passwordHash: string,
+  name?: string
+) {
+  const auth = await getAuthClient();
+  const sheets = google.sheets({ version: "v4", auth });
+  const range = "Sheet1!A:D"; // Assuming columns for Email, PasswordHash, Name, Role
+
+  // Check if headers exist, if not, add them
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Sheet1!A1:D1",
+    });
+    if (!response.data.values || response.data.values.length === 0) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: "Sheet1!A1",
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [["Email", "PasswordHash", "Name", "Role"]],
+        },
+      });
+    }
+  } catch (error) {
+    console.error("Error checking/creating headers in Google Sheet:", error);
+    throw new Error("Failed to ensure Google Sheet headers");
+  }
+
+  const values = [[email, passwordHash, name || "", "user"]];
+
+  const resource = {
+    values,
+  };
+
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range,
+      valueInputOption: "RAW",
+      requestBody: resource,
+    });
+    console.log("User credentials appended to Google Sheet");
+  } catch (error) {
+    console.error("Error appending user credentials to Google Sheet:", error);
+    throw new Error("Failed to append user credentials to Google Sheet");
+  }
+}
+
+export async function getUserCredentialsByEmail(
+  spreadsheetId: string,
+  email: string
+) {
+  const auth = await getAuthClient();
+  const sheets = google.sheets({ version: "v4", auth });
+  const range = "Sheet1!A:D"; // Assuming columns for Email, PasswordHash, Name, Role
+
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+
+    const rows = response.data.values;
+    if (rows && rows.length > 1) { // Skip header row
+      const userRow = rows.find(row => row[0] === email);
+      if (userRow) {
+        return { email: userRow[0], passwordHash: userRow[1], name: userRow[2], role: userRow[3] };
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Error reading user credentials from Google Sheet:", error);
+    throw new Error("Failed to read user credentials from Google Sheet");
+  }
+}
+
 export async function appendAttendanceRecords(
   spreadsheetId: string,
   records: (AttendanceRecord & {

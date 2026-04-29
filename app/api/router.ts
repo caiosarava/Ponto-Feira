@@ -1,4 +1,4 @@
-import { authRouter } from "./auth-router";
+import authRouter from "./auth-router";
 import { locationRouter } from "./locationRouter";
 import { attendanceRouter } from "./attendanceRouter";
 import { createRouter, publicQuery } from "./middleware";

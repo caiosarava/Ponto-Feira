@@ -1,24 +1,57 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { Clock, Loader2 } from "lucide-react";
+import { trpc } from "@/providers/trpc";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock } from "lucide-react";
-
-function getOAuthUrl() {
-  const kimiAuthUrl = import.meta.env.VITE_KIMI_AUTH_URL;
-  const appID = import.meta.env.VITE_APP_ID;
-  const redirectUri = `${window.location.origin}/api/oauth/callback`;
-  const state = btoa(redirectUri);
-
-  const url = new URL(`${kimiAuthUrl}/api/oauth/authorize`);
-  url.searchParams.set("client_id", appID);
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", "profile");
-  url.searchParams.set("state", state);
-
-  return url.toString();
-}
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function Login() {
+  const navigate = useNavigate();
+  const { isAuthenticated, isLoading } = useAuth();
+  const utils = trpc.useUtils();
+
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate("/");
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  const loginMutation = trpc.auth.login.useMutation({
+    onSuccess: async () => {
+      await utils.auth.me.invalidate();
+      navigate("/");
+    },
+    onError: (err) => setFormError(err.message),
+  });
+
+  const registerMutation = trpc.auth.register.useMutation({
+    onSuccess: async () => {
+      await utils.auth.me.invalidate();
+      navigate("/");
+    },
+    onError: (err) => setFormError(err.message),
+  });
+
+  const isSubmitting = loginMutation.isPending || registerMutation.isPending;
+
+  const handleSubmit = () => {
+    setFormError("");
+    if (isRegisterMode) {
+      registerMutation.mutate({ name, email, password });
+      return;
+    }
+    loginMutation.mutate({ email, password });
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4">
       <Card className="w-full max-w-sm">
@@ -28,19 +61,77 @@ export default function Login() {
           </div>
           <div>
             <CardTitle className="text-xl">Ponto Geo</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Registro de Presença com Geolocalização</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Registro de Presença com Geolocalização
+            </p>
           </div>
         </CardHeader>
         <CardContent>
-          <Button
-            className="w-full"
-            size="lg"
-            onClick={() => {
-              window.location.href = getOAuthUrl();
-            }}
-          >
-            Entrar com Kimi
-          </Button>
+          <div className="grid gap-4">
+            {isRegisterMode && (
+              <div className="grid gap-2">
+                <Label htmlFor="name">Nome</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Seu nome"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            {formError ? <p className="text-sm text-red-500">{formError}</p> : null}
+
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isRegisterMode ? (
+                "Criar conta"
+              ) : (
+                "Entrar"
+              )}
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setFormError("");
+                setIsRegisterMode((prev) => !prev);
+              }}
+            >
+              {isRegisterMode ? "Já tenho conta" : "Criar nova conta"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

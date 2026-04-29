@@ -1,22 +1,200 @@
-import * as cookie from "cookie";
+import { TRPCError } from "@trpc/server";
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+import { serialize } from "cookie";
+import { z } from "zod";
 import { Session } from "@contracts/constants";
+import { db } from "../db/connection";
+import { users } from "../db/schema";
+import { eq } from "drizzle-orm";
 import { getSessionCookieOptions } from "./lib/cookies";
-import { createRouter, authedQuery } from "./middleware";
+import { createRouter, publicQuery } from "./middleware";
+import { signSessionToken } from "./kimi/session";
+import {
+  appendUserCredentials,
+  getUserCredentialsByEmail,
+} from "./services/googleSheets";
 
-export const authRouter = createRouter({
-  me: authedQuery.query((opts) => opts.ctx.user),
-  logout: authedQuery.mutation(async ({ ctx }) => {
-    const opts = getSessionCookieOptions(ctx.req.headers);
+const scrypt = promisify(scryptCallback);
+
+type UserCredentialRecord = {
+  email: string;
+  passwordHash: string;
+  name?: string | null;
+  role?: "user" | "admin";
+};
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const hash = (await scrypt(password, salt, 64)) as Buffer;
+  return `${salt}:${hash.toString("hex")}`;
+}
+
+async function verifyPassword(password: string, storedHash: string) {
+  const [salt, key] = storedHash.split(":");
+  if (!salt || !key) return false;
+  const hash = (await scrypt(password, salt, 64)) as Buffer;
+  const keyBuffer = Buffer.from(key, "hex");
+  if (keyBuffer.length !== hash.length) return false;
+  return timingSafeEqual(keyBuffer, hash);
+}
+
+async function findUserByEmail(email: string): Promise<UserCredentialRecord | null> {
+  const googleSheetId =
+    process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+  if (googleSheetId) {
+    return await getUserCredentialsByEmail(googleSheetId, email);
+  }
+
+  const dbUser = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (!dbUser.length || !dbUser[0].password) {
+    return null;
+  }
+
+  return {
+    email: dbUser[0].email,
+    passwordHash: dbUser[0].password,
+    name: dbUser[0].name,
+    role: dbUser[0].role,
+  };
+}
+
+function setSessionCookie(
+  headers: Headers,
+  requestHeaders: Headers,
+  token: string,
+  maxAge: number,
+) {
+  const options = getSessionCookieOptions(requestHeaders);
+  headers.append(
+    "set-cookie",
+    serialize(Session.cookieName, token, {
+      ...options,
+      maxAge,
+    }),
+  );
+}
+
+const authRouter = createRouter({
+  register: publicQuery
+    .input(
+      z.object({
+        email: z.string().email(),
+        password: z.string().min(6),
+        name: z.string().min(2).max(80).optional(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const existing = await findUserByEmail(input.email);
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Este email já está cadastrado.",
+        });
+      }
+
+      const passwordHash = await hashPassword(input.password);
+
+      await db.insert(users).values({
+        email: input.email,
+        password: passwordHash,
+        name: input.name,
+        role: "user",
+        unionId: input.email,
+      });
+
+      const googleSheetId =
+        process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+      if (googleSheetId) {
+        await appendUserCredentials(
+          googleSheetId,
+          input.email,
+          passwordHash,
+          input.name,
+        );
+      }
+
+      const token = await signSessionToken({
+        unionId: input.email,
+        clientId: process.env.APP_ID || "local-app",
+      });
+
+      setSessionCookie(
+        ctx.resHeaders,
+        ctx.req.headers,
+        token,
+        Math.floor(Session.maxAgeMs / 1000),
+      );
+
+      return { success: true };
+    }),
+
+  login: publicQuery
+    .input(
+      z.object({
+        email: z.string().email(),
+        password: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const userRecord = await findUserByEmail(input.email);
+      if (!userRecord?.passwordHash) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Email ou senha inválidos.",
+        });
+      }
+
+      const validPassword = await verifyPassword(
+        input.password,
+        userRecord.passwordHash,
+      );
+
+      if (!validPassword) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Email ou senha inválidos.",
+        });
+      }
+
+      const token = await signSessionToken({
+        unionId: userRecord.email,
+        clientId: process.env.APP_ID || "local-app",
+      });
+
+      setSessionCookie(
+        ctx.resHeaders,
+        ctx.req.headers,
+        token,
+        Math.floor(Session.maxAgeMs / 1000),
+      );
+
+      return { success: true };
+    }),
+
+  me: publicQuery.query(async ({ ctx }) => {
+    if (!ctx.user) {
+      return null;
+    }
+    return ctx.user;
+  }),
+
+  logout: publicQuery.mutation(async ({ ctx }) => {
+    const options = getSessionCookieOptions(ctx.req.headers);
     ctx.resHeaders.append(
       "set-cookie",
-      cookie.serialize(Session.cookieName, "", {
-        httpOnly: opts.httpOnly,
-        path: opts.path,
-        sameSite: opts.sameSite?.toLowerCase() as "lax" | "none",
-        secure: opts.secure,
+      serialize(Session.cookieName, "", {
+        ...options,
         maxAge: 0,
       }),
     );
     return { success: true };
   }),
 });
+
+export default authRouter;
