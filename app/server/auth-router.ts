@@ -72,6 +72,13 @@ function setSessionCookie(
   token: string,
   maxAge: number,
 ) {
+  if (!headers || typeof headers.append !== 'function') {
+    console.error("setSessionCookie: resHeaders is missing or invalid in context");
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Erro interno na configuração do servidor.",
+    });
+  }
   const options = getSessionCookieOptions(requestHeaders);
   const serializeOptions: SerializeOptions = {
     httpOnly: options.httpOnly,

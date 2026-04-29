@@ -35,7 +35,13 @@ export default function Login() {
 
   const registerMutation = trpc.auth.register.useMutation({
     onSuccess: async () => {
-      await utils.auth.login.mutate({ email, password });
+      try {
+        await loginMutation.mutateAsync({ email, password });
+      } catch (err) {
+        // If auto-login fails after registration, just redirect to login mode
+        setIsRegisterMode(false);
+        setFormError("Conta criada! Por favor, faça login.");
+      }
       navigate("/");
     },
     onError: (err) => setFormError(err.message),
