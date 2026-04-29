@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { serialize } from "cookie";
+import type { SerializeOptions } from "cookie";
 import { z } from "zod";
 import { Session } from "../contracts/constants.js";
 import { db } from "../db/connection.js";
@@ -71,12 +72,22 @@ function setSessionCookie(
   maxAge: number,
 ) {
   const options = getSessionCookieOptions(requestHeaders);
+  const serializeOptions: SerializeOptions = {
+    httpOnly: options.httpOnly,
+    path: options.path,
+    secure: options.secure,
+    sameSite:
+      options.sameSite?.toLowerCase() === "strict"
+        ? "strict"
+        : options.sameSite?.toLowerCase() === "none"
+          ? "none"
+          : "lax",
+    maxAge,
+  };
+
   headers.append(
     "set-cookie",
-    serialize(Session.cookieName, token, {
-      ...options,
-      maxAge,
-    }),
+    serialize(Session.cookieName, token, serializeOptions),
   );
 }
 
@@ -186,12 +197,22 @@ const authRouter = createRouter({
 
   logout: publicQuery.mutation(async ({ ctx }) => {
     const options = getSessionCookieOptions(ctx.req.headers);
+    const serializeOptions: SerializeOptions = {
+      httpOnly: options.httpOnly,
+      path: options.path,
+      secure: options.secure,
+      sameSite:
+        options.sameSite?.toLowerCase() === "strict"
+          ? "strict"
+          : options.sameSite?.toLowerCase() === "none"
+            ? "none"
+            : "lax",
+      maxAge: 0,
+    };
+
     ctx.resHeaders.append(
       "set-cookie",
-      serialize(Session.cookieName, "", {
-        ...options,
-        maxAge: 0,
-      }),
+      serialize(Session.cookieName, "", serializeOptions),
     );
     return { success: true };
   }),
