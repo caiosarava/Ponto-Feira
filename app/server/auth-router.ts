@@ -17,7 +17,6 @@ import {
 } from "./services/googleSheets.js";
 
 const scrypt = promisify(scryptCallback);
-const db = getDb();
 
 type UserCredentialRecord = {
   email: string;
@@ -48,6 +47,8 @@ async function findUserByEmail(email: string): Promise<UserCredentialRecord | nu
     return await getUserCredentialsByEmail(googleSheetId, email);
   }
 
+  const dbUser = await db
+  const db = getDb();
   const dbUser = await db
     .select()
     .from(users)
@@ -112,14 +113,6 @@ const authRouter = createRouter({
 
       const passwordHash = await hashPassword(input.password);
 
-      await db.insert(users).values({
-        email: input.email,
-        password: passwordHash,
-        name: input.name,
-        role: "user",
-        unionId: input.email,
-      });
-
       const googleSheetId =
         process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
       if (googleSheetId) {
@@ -129,6 +122,15 @@ const authRouter = createRouter({
           passwordHash,
           input.name,
         );
+      } else {
+        const db = getDb();
+        await db.insert(users).values({
+          email: input.email,
+          password: passwordHash,
+          name: input.name,
+          role: "user",
+          unionId: input.email,
+        });
       }
 
       const token = await signSessionToken({
