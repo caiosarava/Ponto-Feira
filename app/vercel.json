@@ -1,13 +1,12 @@
 {
   "framework": "vite",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index.ts"
+      "handle": "filesystem"
     },
     {
-      "source": "/((?!api/|.*\\..*).*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
