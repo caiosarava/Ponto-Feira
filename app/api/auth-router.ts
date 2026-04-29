@@ -5,18 +5,19 @@ import { serialize } from "cookie";
 import type { SerializeOptions } from "cookie";
 import { z } from "zod";
 import { Session } from "../contracts/constants.js";
-import { db } from "../db/connection.js";
 import { users } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { getSessionCookieOptions } from "./lib/cookies.js";
 import { createRouter, publicQuery } from "./middleware.js";
 import { signSessionToken } from "./auth/session.js";
+import { getDb } from "./queries/connection.js";
 import {
   appendUserCredentials,
   getUserCredentialsByEmail,
 } from "./services/googleSheets.js";
 
 const scrypt = promisify(scryptCallback);
+const db = getDb();
 
 type UserCredentialRecord = {
   email: string;
