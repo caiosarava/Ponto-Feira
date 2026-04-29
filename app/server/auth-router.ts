@@ -47,7 +47,6 @@ async function findUserByEmail(email: string): Promise<UserCredentialRecord | nu
     return await getUserCredentialsByEmail(googleSheetId, email);
   }
 
-  const dbUser = await db
   const db = getDb();
   const dbUser = await db
     .select()
