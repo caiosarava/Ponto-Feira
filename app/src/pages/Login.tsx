@@ -35,7 +35,7 @@ export default function Login() {
 
   const registerMutation = trpc.auth.register.useMutation({
     onSuccess: async () => {
-      await utils.auth.me.invalidate();
+      await utils.auth.login.mutate({ email, password });
       navigate("/");
     },
     onError: (err) => setFormError(err.message),
