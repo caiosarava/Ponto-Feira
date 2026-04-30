@@ -17,40 +17,30 @@ export type TrpcContext = {
 
 /**
  * Cria o contexto para cada requisição tRPC.
- * Refactorado para ser resiliente a falhas de variáveis de ambiente e infraestrutura.
+ * * NOTA DE DEBUG: Se você encontrar um erro 500 "FUNCTION_INVOCATION_FAILED",
+ * verifique se a variável APP_SECRET está configurada no painel da Vercel.
  */
 export async function createContext(
   opts: FetchCreateContextFnOptions,
 ): Promise<TrpcContext> {
-  // Inicializa o contexto com os objetos básicos da requisição
   const ctx: TrpcContext = { 
     req: opts.req, 
     resHeaders: opts.resHeaders 
   };
 
   try {
-    /**
-     * Tenta autenticar o utilizador.
-     * O uso do .catch interno garante que, se o authenticateRequest falhar
-     * por causa de uma variável de ambiente (ex: DATABASE_URL inválida),
-     * a aplicação não retorne um Erro 500 global, permitindo que o tRPC responda.
-     */
-    const userResult = await authenticateRequest(opts.req.headers).catch((err) => {
-      // Log detalhado para diagnóstico no painel da Vercel
-      console.error("[TRPC Context] Erro durante a autenticação da sessão:", {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined
-      });
-      return null;
-    });
+    // Tenta obter o usuário da sessão.
+    // Se o código parar aqui com "Missing required environment variable",
+    // significa que o arquivo 'env.ts' disparou um erro fatal.
+    const userResult = await authenticateRequest(opts.req.headers);
     
     if (userResult) {
-      // Atribuição segura ao contexto
       ctx.user = userResult as User;
     }
   } catch (error) {
-    // Captura erros inesperados fora do fluxo de autenticação
-    console.error("[TRPC Context] Erro fatal inesperado no createContext:", error);
+    // Registra o erro mas permite que o contexto seja criado (usuário ficará undefined)
+    // Isso evita o erro 500 em rotas públicas, a menos que o erro seja de inicialização de módulo.
+    console.error("[TRPC Context Error]:", error instanceof Error ? error.message : error);
   }
 
   return ctx;
