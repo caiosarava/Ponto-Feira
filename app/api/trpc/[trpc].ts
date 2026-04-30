@@ -1,7 +1,8 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-// Caminhos ajustados de acordo com a estrutura: api/trpc/[trpc].ts -> src/server/...
-import { appRouter } from "../../src/server/router.ts";
-import { createContext } from "../../src/server/context.ts";
+// Removendo a extensão .ts explicitamente para permitir que o compilador resolva 
+// de acordo com as configurações do tsconfig (comum em builds Vite/Vercel)
+import { appRouter } from "../../server/router";
+import { createContext } from "../../server/context";
 
 const handler = (req: Request) =>
   fetchRequestHandler({
