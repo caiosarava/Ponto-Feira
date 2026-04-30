@@ -17,29 +17,40 @@ export type TrpcContext = {
 
 /**
  * Cria o contexto para cada requisição tRPC.
- * Resolve problemas de tipagem garantindo que o retorno do authenticateRequest
- * seja compatível com o tipo User definido no schema.
+ * Refactorado para ser resiliente a falhas de variáveis de ambiente e infraestrutura.
  */
 export async function createContext(
   opts: FetchCreateContextFnOptions,
 ): Promise<TrpcContext> {
+  // Inicializa o contexto com os objetos básicos da requisição
   const ctx: TrpcContext = { 
     req: opts.req, 
     resHeaders: opts.resHeaders 
   };
 
   try {
-    const userResult = await authenticateRequest(opts.req.headers);
+    /**
+     * Tenta autenticar o utilizador.
+     * O uso do .catch interno garante que, se o authenticateRequest falhar
+     * por causa de uma variável de ambiente (ex: DATABASE_URL inválida),
+     * a aplicação não retorne um Erro 500 global, permitindo que o tRPC responda.
+     */
+    const userResult = await authenticateRequest(opts.req.headers).catch((err) => {
+      // Log detalhado para diagnóstico no painel da Vercel
+      console.error("[TRPC Context] Erro durante a autenticação da sessão:", {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      return null;
+    });
     
     if (userResult) {
-      // Fazemos o cast ou a atribuição segura para garantir que o tipo 
-      // retornado bata com a interface User (evitando o erro TS2322)
+      // Atribuição segura ao contexto
       ctx.user = userResult as User;
     }
   } catch (error) {
-    // Silenciosamente falha a autenticação no contexto; 
-    // procedimentos protegidos (authedQuery) lançarão erro via middleware.
-    console.error("Erro na autenticação do contexto:", error);
+    // Captura erros inesperados fora do fluxo de autenticação
+    console.error("[TRPC Context] Erro fatal inesperado no createContext:", error);
   }
 
   return ctx;
