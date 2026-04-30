@@ -1,7 +1,7 @@
-import authRouter from "./auth-router.ts";
-import { locationRouter } from "./locationRouter.ts";
-import { attendanceRouter } from "./attendanceRouter.ts";
-import { createRouter, publicQuery } from "./middleware.ts";
+import authRouter from "./auth-router.js";
+import { locationRouter } from "./locationRouter.js";
+import { attendanceRouter } from "./attendanceRouter.js";
+import { createRouter, publicQuery } from "./middleware.js";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
