@@ -1,11 +1,10 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+// Caminho corrigido para subir de api/trpc/ para a raiz e entrar em src/server/
 import { appRouter } from "../../server/router.js";
 import { createContext } from "../../server/context.js";
 
 const handler = async (req: Request) => {
-  // A Vercel/Node às vezes passa URLs relativas no objeto Request, 
-  // o que causa o erro "Invalid URL" no fetchRequestHandler.
-  // Aqui forçamos a URL a ser absoluta usando o header 'host'.
+  // Forçamos a URL a ser absoluta usando o header 'host' para evitar ERR_INVALID_URL
   const url = new URL(req.url, `https://${req.headers.get("host") || "localhost"}`);
 
   return fetchRequestHandler({
@@ -14,9 +13,10 @@ const handler = async (req: Request) => {
       method: req.method,
       headers: req.headers,
       body: req.body,
-      // @ts-ignore - necessário para passar o sinal de aborto se disponível
+      // @ts-ignore
       signal: req.signal,
-      duplex: "half",
+      // Cast para bypass do erro TS2353, necessário para compatibilidade Node.js Fetch body
+      ...({ duplex: "half" } as any),
     }),
     router: appRouter,
     createContext,
