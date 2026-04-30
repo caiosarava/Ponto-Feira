@@ -1,6 +1,6 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { appRouter } from "../../src/server/router.js";
-import { createContext } from "../../src/server/context.js";
+import { appRouter } from "../../server/router.js";
+import { createContext } from "../../server/context.js";
 
 const handler = async (req: Request) => {
   // A Vercel/Node às vezes passa URLs relativas no objeto Request, 
