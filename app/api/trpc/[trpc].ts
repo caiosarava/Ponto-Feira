@@ -1,7 +1,7 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-// Ajuste os caminhos abaixo conforme sua estrutura real de pastas
-import { appRouter } from "../../server/router.ts";
-import { createContext } from "../../server/context.ts";
+// Caminhos ajustados de acordo com a estrutura: api/trpc/[trpc].ts -> src/server/...
+import { appRouter } from "../../src/server/router.ts";
+import { createContext } from "../../src/server/context.ts";
 
 const handler = (req: Request) =>
   fetchRequestHandler({
